@@ -32,9 +32,13 @@ function SignIn() {
         const PassWord = UserPassInputRef.current.value;
         const RePassWord = UserRePassInputRef.current;
 
-        if (UserName.length < 3) return setError("Your Name Should Be More Than or Equal to 3 word") ,setLocation("#");
-        if (PassWord.length < 4) return setError("Your PassWord Should Be More Than or Equal to 4 word") ,setLocation("#");
-        if (RePassWord.value !== UserPassInputRef.current.value) return setError("Passwords do not match. Please make sure your passwords are identical."), setLocation("/#");
+        const NameError = "Your Name Should Be More Than or Equal to 3 word";
+        const PassError = "Your PassWord Should Be More Than or Equal to 4 word";
+        const RePassError = "Passwords do not match. Please make sure your passwords are identical.";
+
+        if (UserName.length < 3) return setError(NameError) ,setLocation("#");
+        if (PassWord.length < 4) return setError(PassError) ,setLocation("#");
+        if (RePassWord.value !== UserPassInputRef.current.value) return setError(RePassError), setLocation("/#");
 
         setError("")
     }
