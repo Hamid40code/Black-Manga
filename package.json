@@ -1,4 +1,5 @@
 {
+  "homepage": "https://Hamid40code.github.io/Black-Manga",
   "name": "black-manga",
   "private": true,
   "version": "0.0.0",
@@ -8,6 +9,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
+    
   },
   "dependencies": {
     "react": "^19.2.8",
