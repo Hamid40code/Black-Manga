@@ -59,7 +59,7 @@ main {
     margin-bottom: 10px;
 }
 
-.sign-in-input {
+.sign-in-input , .log-in-input{
     font-weight: bold;
     font-size: 1.4rem;
     margin-bottom: 25px;
@@ -119,7 +119,7 @@ a{
         margin-bottom: 0;
     }
 
-    .sign-in-input {
+    .sign-in-input , .log-in-input{
         width: 100%;
         max-width: 280px;
         box-sizing: border-box;
