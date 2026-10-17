@@ -51,7 +51,7 @@ function Login() {
 
             </main>
 
-            <span>Don't have an account? <Link to={"/"}>Create Account</Link></span>
+            <span className='text'>Don't have an account? <Link to={"/"}>Create Account</Link></span>
 
         </>
 

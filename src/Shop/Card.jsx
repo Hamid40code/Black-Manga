@@ -1,15 +1,18 @@
-import { Link } from "react-router-dom";
+
+import './Style.css'
 
 function Card(prop) {
-
     return (
-        <Link to= "">
             <div className="card-container">
-                <img src={prop.img} alt="Manga-Pic" className="card-img"/>
-                <h2 className="manga-name">{prop.name}</h2>
-                <h3 className="manga-chapter">Chapters:{prop.chapter}</h3>
+
+                <div className="card-img-container">
+                    <img src={prop.img} alt="card-Pic" className="card-img" />
+                </div>
+
+                <h2 className="text" style={{marginBottom : 0}}>{prop.name}</h2>
+                <h3 className="text" style={{marginBottom : 0}}>Chapters:{prop.chapter}</h3>
+
             </div>
-        </Link>
     );
 }
 

@@ -1,0 +1,66 @@
+* {
+    transition: background-color 0.3s, color 0.3s;
+}
+
+:root,
+.root-dark {
+    --bg-dark: hsl(0, 0%, 5%);
+    --bg-med: hsl(0, 0%, 15%);
+    --bg-light: hsl(0, 0%, 20%);
+    --text-color: hsl(0, 0%, 97%);
+}
+
+.root-light {
+    --bg-dark: hsl(0, 0%, 95%);
+    --bg-med: hsl(0, 0%, 100%);
+    --bg-light: hsl(0, 0%, 85%);
+    --text-color: hsl(0, 0%, 3%);
+}
+
+.category-container {
+    width: 100dvw;
+    overflow: auto;
+    margin-top: 50px;
+    box-shadow: 3px 3px 3px hsl(300, 100%, 37%);
+}
+
+.slider {
+    height: 400px;
+    width: auto;
+    display: flex;
+    align-items: center;
+    padding: 0%;
+    padding: 10px;
+    background-color: var(--bg-med);
+
+}
+
+.card-container {
+    width: 250px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--bg-light);
+    margin-right: 30px;
+    padding: 10px;
+    border-radius: 15px;
+    box-shadow: 3px 3px 3px hsl(300, 100%, 37%);
+}
+
+.card-container:hover {
+    box-shadow: 4px 4px 4px hsl(300, 100%, 37%);
+}
+
+.card-img {
+    margin-top: 10px;
+    width: 200px;
+    height: 250px;
+}
+
+.nav-btn {
+    background-color: var(--bg-light);
+    color: var(--text-color);
+    cursor: pointer;
+    margin: 10px;
+}
