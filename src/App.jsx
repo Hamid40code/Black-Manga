@@ -1,7 +1,7 @@
 import { HashRouter as Router, Routes, Route } from "react-router-dom"
 import SignIn from "./Enterance/Sign-In.jsx"
 import Login from "./Enterance/Log-In.jsx"
-import Shop from "./Shop.jsx"
+import Shop from "./Shop/Shop.jsx"
 
 function App() {
 
