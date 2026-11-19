@@ -11,6 +11,9 @@ export const AUTH_API_ERROR_CODES = [
   'NETWORK_ERROR',
   'SERVER_ERROR',
   'UNKNOWN_ERROR',
+  'API_NOT_CONFIGURED',
+  'AUTH_REQUIRED',
+  'SESSION_EXPIRED',
 ] as const satisfies readonly AuthErrorCode[];
 
 export type AuthApiErrorCode = (typeof AUTH_API_ERROR_CODES)[number];
@@ -43,6 +46,9 @@ export const AUTH_ERRORS: Record<AuthErrorCode, string> = {
   NETWORK_ERROR: 'Connection failed. Try again.',
   SERVER_ERROR: 'Server error. Try again later.',
   UNKNOWN_ERROR: 'Unable to continue. Try again.',
+  API_NOT_CONFIGURED: 'The authentication API is not configured. Set VITE_AUTH_API_BASE_URL and restart the frontend.',
+  AUTH_REQUIRED: 'Please sign in to continue.',
+  SESSION_EXPIRED: 'Your session has expired. Please sign in again.',
 };
 
 export function getAuthErrorMessage(code: AuthErrorCode): string {

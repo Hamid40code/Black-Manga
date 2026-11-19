@@ -1,4 +1,4 @@
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import FloatingInput, { MailIcon } from './FloatingInput';
 import PasswordInput from './PasswordInput';
 import SignInForm from './SignInForm';
@@ -13,7 +13,15 @@ import type {
   RegistrationErrors,
   RegistrationStep,
 } from '../../types/registration.types';
-import { checkUsernameAvailability, createAccount, AuthApiError } from '../../services/authApi';
+import {
+  AuthApiError,
+  checkUsernameAvailability,
+  createAccount,
+  isAuthApiConfigured,
+  restoreSession,
+  signOut,
+  type AuthenticatedUser,
+} from '../../services/authApi';
 import { validateEmail } from '../../utils/emailValidation';
 import { validateRegistrationCredentials } from '../../utils/registrationValidation';
 import { FORM_LIMITS } from '../../constants/formLimits';
@@ -38,14 +46,42 @@ export default function AccountSetupFlow() {
   // Keep sign-in input values above the page switch so unmounting the form
   // does not clear them. They start empty on every fresh page load.
   const [signInValues, setSignInValues] = useState<SignInValues>(INITIAL_SIGN_IN_VALUES);
-  // UI state only for now; authentication can use this when session persistence is implemented.
+  // The backend applies Remember me through its HttpOnly refresh-cookie policy.
   const [rememberMe, setRememberMe] = useState(false);
+  const [authenticatedUser, setAuthenticatedUser] = useState<AuthenticatedUser | null>(null);
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [email, setEmail] = useState('');
   const [credentialErrors, setCredentialErrors] = useState<RegistrationErrors>({});
   const [emailError, setEmailError] = useState<string>();
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthApiConfigured()) {
+      setIsRestoringSession(false);
+      return;
+    }
+
+    let isMounted = true;
+    restoreSession()
+      .then((user) => {
+        if (isMounted) setAuthenticatedUser(user);
+      })
+      .catch(() => {
+        // A failed restore leaves the user signed out; the sign-in form reports
+        // any actionable API error when the user submits their credentials.
+        if (isMounted) setAuthenticatedUser(null);
+      })
+      .finally(() => {
+        if (isMounted) setIsRestoringSession(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   function handleCredentialChange(field: keyof RegistrationCredentials, value: string) {
     setCredentials((current) => ({ ...current, [field]: value }));
@@ -55,6 +91,33 @@ export default function AccountSetupFlow() {
 
   function handleSignInValueChange(field: keyof SignInValues, value: string) {
     setSignInValues((current) => ({ ...current, [field]: value }));
+    setNotice(null);
+  }
+
+  function handleAuthenticated(user: AuthenticatedUser) {
+    setAuthenticatedUser(user);
+    setSignInValues(INITIAL_SIGN_IN_VALUES);
+    setRememberMe(false);
+    setNotice(null);
+  }
+
+  async function handleSignOut() {
+    setIsSigningOut(true);
+    setNotice(null);
+    try {
+      await signOut();
+    } catch {
+      setNotice({
+        type: 'error',
+        message: 'The local session was cleared, but the server could not confirm sign out. Try again.',
+      });
+    } finally {
+      setAuthenticatedUser(null);
+      setSignInValues(INITIAL_SIGN_IN_VALUES);
+      setRememberMe(false);
+      setPage('signin');
+      setIsSigningOut(false);
+    }
   }
 
   async function handleCredentialsSubmit(event: FormEvent<HTMLFormElement>) {
@@ -77,14 +140,7 @@ export default function AccountSetupFlow() {
         return;
       }
 
-      // No database is queried in preview mode. The backend check becomes active
-      // as soon as VITE_AUTH_API_BASE_URL is configured.
       setStep('email');
-      setNotice(
-        result.previewMode
-          ? { type: 'info', message: 'Preview mode: username availability is not being checked yet.' }
-          : null,
-      );
     } catch (error) {
       const message =
         error instanceof AuthApiError
@@ -110,19 +166,11 @@ export default function AccountSetupFlow() {
     setIsCreatingAccount(true);
 
     try {
-      const result = await createAccount({
+      await createAccount({
         username: credentials.username.trim(),
         password: credentials.password,
         email: email.trim(),
       });
-
-      if (!result.created) {
-        setNotice({
-          type: 'info',
-          message: 'Backend is not connected. Your information has not been saved.',
-        });
-        return;
-      }
 
       setStep('complete');
       setCredentials((current) => ({ ...current, password: '', confirmPassword: '' }));
@@ -144,16 +192,42 @@ export default function AccountSetupFlow() {
     setNotice(null);
   }
 
+  if (isRestoringSession) {
+    return (
+      <div className="w-full py-8 text-center text-sm text-white/75" role="status" aria-live="polite">
+        Checking your session…
+      </div>
+    );
+  }
+
+  if (authenticatedUser) {
+    return (
+      <div className="w-full text-center">
+        <h1 className="mb-4 font-serif text-[30px] font-medium tracking-[-0.025em] text-white">
+          You&apos;re signed in
+        </h1>
+        <p className="mb-6 text-sm text-white/70">
+          {authenticatedUser.username ? `Welcome back, ${authenticatedUser.username}.` : 'Your session is active.'}
+        </p>
+        <PrimaryActionButton type="button" onClick={handleSignOut} disabled={isSigningOut}>
+          {isSigningOut ? 'SIGNING OUT…' : 'SIGN OUT'}
+        </PrimaryActionButton>
+      </div>
+    );
+  }
+
   if (page === 'signin') {
     return (
       <div className="w-full">
         <h1 className="mb-5 text-center font-serif text-[30px] font-medium tracking-[-0.025em] text-white">
           Welcome back
         </h1>
+        <FormStatus notice={notice} compact />
         <SignInForm
           values={signInValues}
           onValuesChange={handleSignInValueChange}
           onCreateAccount={() => setPage('signup')}
+          onAuthenticated={handleAuthenticated}
           rememberMe={rememberMe}
           onRememberMeChange={setRememberMe}
         />
@@ -172,7 +246,8 @@ export default function AccountSetupFlow() {
             <path d="m5 12.5 4.5 4.5L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <p className="text-sm text-white/75">Your account is ready.</p>
+        <p className="mb-6 text-sm text-white/75">Your account is ready. Sign in to continue.</p>
+        <PrimaryActionButton type="button" onClick={() => setPage('signin')}>GO TO SIGN IN</PrimaryActionButton>
       </div>
     );
   }

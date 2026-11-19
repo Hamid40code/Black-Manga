@@ -1,6 +1,5 @@
 {
   "name": "temple-sign-in",
-  "homepage": "https://hamid40code.github.io/Black-Manga/",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -8,12 +7,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "gh-pages": "^6.3.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

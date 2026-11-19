@@ -1,18 +1,27 @@
 # Temple Sign-In & Account Setup
 
-A responsive account-creation flow built with React, Vite, TypeScript, and Tailwind CSS v4. It uses the supplied temple image as the full-page background and a moderately translucent glass panel.
+A responsive account creation and sign-in frontend built with React, Vite, TypeScript, and Tailwind CSS v4. The supplied temple image is used as the full-page background.
 
 ## Requirements
 
 - Node.js 20.19+ or 22.12+
 - npm
+- A backend implementing the API contract below
 
 ## Run locally
 
 ```bash
 npm install
+cp .env.example .env.local
+```
+
+Set `VITE_AUTH_API_BASE_URL` in `.env.local` to the real backend API root, then run:
+
+```bash
 npm run dev
 ```
+
+Example shape: `http://localhost:3000/api`. Do not use that address unless your backend is actually listening there. Restart Vite after changing the environment file.
 
 ## Production build
 
@@ -38,7 +47,10 @@ src/
 │   ├── authErrors.ts
 │   ├── emailErrors.ts
 │   └── formLimits.ts
-├── services/authApi.ts
+├── services/
+│   ├── apiClient.ts
+│   ├── authApi.ts
+│   └── authToken.ts
 ├── types/
 │   ├── auth.types.ts
 │   ├── email.types.ts
@@ -52,29 +64,20 @@ src/
 └── main.tsx
 ```
 
-## Account setup flow
+## Frontend authentication flow
 
-1. The first step asks for a username, password, and repeated password.
-2. Client-side validation checks the username, password rules, and whether both passwords match.
-3. The username availability check runs through `src/services/authApi.ts`.
-4. When the API reports that the username does not exist, the page advances to the email setup step.
-5. The email is validated using the reusable email validator.
-6. The final account request is sent to the backend when it is configured.
+1. Registration validates the username and password in the browser, then calls the backend to check username availability.
+2. The email step validates the email, then sends the account creation request to the backend.
+3. Sign-in sends the username, password, and `rememberMe` flag to the backend.
+4. A successful sign-in stores the short-lived access token in a private JavaScript module variable. Authenticated API calls can use the shared API client to attach it as a Bearer token.
+5. On a fresh page load, the frontend asks the backend to restore the session using its HttpOnly refresh cookie. A new access token is returned to memory when a valid refresh cookie exists.
+6. Sign-out asks the backend to revoke the refresh session and always clears the in-memory access token on the frontend.
 
-### Username requirements
+There is no preview mode, mock API, fake account database, or browser storage fallback. If `VITE_AUTH_API_BASE_URL` is empty, API actions fail with a clear configuration error and no account information is saved.
 
-- 3–8 characters after trimming leading and trailing spaces.
+## Backend API contract
 
-### Password requirements
-
-- 8–24 characters.
-- At least one uppercase letter (A–Z).
-- At least one lowercase letter (a–z).
-- At least one number (0–9).
-
-## Backend connection contract
-
-The frontend is prepared for these endpoints:
+The frontend expects the following endpoints below the configured API base URL.
 
 ### `POST /auth/username/check`
 
@@ -90,7 +93,7 @@ Response:
 { "exists": false }
 ```
 
-When `exists` is `true`, the user stays on the credentials step and sees a username-taken error. When it is `false`, the email setup step opens.
+Return `exists: true` when the username is already taken. For failed requests, return a JSON error such as `{ "code": "USERNAME_ALREADY_EXISTS" }`. The frontend recognizes `USERNAME_ALREADY_EXISTS`, `EMAIL_ALREADY_IN_USE`, `INVALID_CREDENTIALS`, `ACCOUNT_DISABLED`, and `RATE_LIMITED`.
 
 ### `POST /auth/register`
 
@@ -104,38 +107,78 @@ Request:
 }
 ```
 
-The backend should validate all fields again, hash the password securely, enforce unique usernames/emails, and return a successful 2xx response only after account creation succeeds. It should never store plain-text passwords. Use HTTPS for all production authentication requests.
+Return a successful 2xx response only after the account has been created. A `204 No Content` response is supported. The backend must independently validate all fields, enforce unique usernames and emails, hash passwords securely, and never store plain-text passwords.
 
-Configure the API base URL by copying `.env.example` to `.env.local` and setting:
+### `POST /auth/login`
 
-```env
-VITE_AUTH_API_BASE_URL=http://localhost:3000/api
+Request:
+
+```json
+{
+  "username": "reader12",
+  "password": "Example123",
+  "rememberMe": true
+}
 ```
 
-The endpoint paths are appended to this base URL.
+Response:
 
-## Preview mode before the backend exists
+```json
+{
+  "accessToken": "<short-lived-access-token>",
+  "user": { "username": "reader12" }
+}
+```
 
-When `VITE_AUTH_API_BASE_URL` is empty, the frontend enters preview mode. It assumes the username is available so the email step can be tested. **This is not a database check.** Submitting the email displays a message that the backend is not connected and confirms that the details have not been saved.
+The backend must issue the access token in the JSON response and keep the refresh token in an `HttpOnly` cookie. It must not return the refresh token in JSON. The `rememberMe` flag is a request for the backend to choose the refresh-cookie lifetime: persistent when true, session-scoped when false.
 
-No `localStorage`, cookies, or browser persistence are used. Form values remain in React memory only and are lost when the page is refreshed.
+### `POST /auth/refresh`
 
-## Legal links and sign-in navigation
+The browser sends the refresh cookie automatically because the API client uses `credentials: 'include'`.
 
-The signup flow includes Terms of Service and Privacy Policy links. Each opens an accessible, centered dialog over a blurred backdrop; dialogs close with the close control, backdrop click, or Escape key. The included legal wording is starter copy and must be reviewed and adapted to the real service before public launch.
+Response:
 
-The signup footer opens the existing username/password sign-in form, and the sign-in form links back to account creation.
+```json
+{
+  "accessToken": "<new-short-lived-access-token>",
+  "user": { "username": "reader12" }
+}
+```
 
-## Existing sign-in and email utilities
+Return `401` or `403` when the refresh session is missing, expired, or revoked. The frontend treats that as a signed-out state.
 
-The username/password sign-in form and separate email validator remain available for reuse. The displayed page currently runs the account-setup flow. Shared field limits, field errors, status messages, and primary-button styling are kept in reusable modules to avoid duplicated rules and markup.
+### `POST /auth/logout`
 
-## Form state between pages
+Revoke the refresh session server-side and clear the refresh cookie. A successful `204 No Content` response is supported.
 
-Sign-in username and password values are held in `AccountSetupFlow`, above the conditional sign-in/sign-up view. Switching between those views keeps the values in React memory. They start blank again after a full page reload because no `localStorage`, `sessionStorage`, or cookie persistence is used.
+### Authenticated endpoints
 
-The sign-in form disables browser autocomplete and starts its fields as read-only until the user focuses them. This discourages automatic credential restoration while preserving in-session values when switching between the two views. Browser extensions or password managers may still override page-level controls.
+Use `apiRequest` from `src/services/apiClient.ts` with `requiresAuth: true` for protected backend requests:
 
-### Remember me
+```ts
+const profile = await apiRequest<Profile>('/profile', {
+  method: 'GET',
+  requiresAuth: true,
+});
+```
 
-The sign-in page includes a controlled `Remember me` checkbox. Its selection is held in React state across sign-in/sign-up navigation and resets on a full page reload. It does not persist a session yet; the flag is reserved for the future authentication integration.
+The client attaches `Authorization: Bearer <accessToken>`. Keep the response types aligned with the backend's actual contract.
+
+## Token and session security
+
+- The access token exists only in module memory. It is cleared on sign-out and disappears when the page is refreshed or closed.
+- No `localStorage`, `sessionStorage`, IndexedDB, or JavaScript-readable refresh-token cookie is used.
+- The refresh token must be an `HttpOnly`, `Secure` (in production), `SameSite` cookie, issued and revoked by the backend.
+- The frontend never reads or creates the refresh cookie. `credentials: 'include'` only allows the browser to send/receive the backend-managed cookie.
+- For cross-origin development, configure the backend CORS policy with the exact frontend origin and `Access-Control-Allow-Credentials: true`; do not use `*` with credentialed requests.
+- Use HTTPS in production. The backend remains responsible for token expiry, refresh-token rotation, revocation, CSRF protections appropriate to its cookie policy, and authorization checks on protected routes.
+
+## Form behavior
+
+Sign-in username/password values and the `Remember me` checkbox are kept in React state while switching between sign-in and sign-up. They are not persisted by the frontend. The remember-me choice is sent to the backend as part of the login request; any persistence comes only from the backend-managed refresh cookie.
+
+The sign-in inputs discourage browser autocomplete, but browser extensions and password managers may still override page-level controls.
+
+## Legal links
+
+Terms of Service and Privacy Policy open accessible dialogs. The included wording is starter copy and must be reviewed and adapted to the real service before public launch.

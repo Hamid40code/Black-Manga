@@ -24,7 +24,10 @@ export type AuthErrorCode =
   | 'RATE_LIMITED'
   | 'NETWORK_ERROR'
   | 'SERVER_ERROR'
-  | 'UNKNOWN_ERROR';
+  | 'UNKNOWN_ERROR'
+  | 'API_NOT_CONFIGURED'
+  | 'AUTH_REQUIRED'
+  | 'SESSION_EXPIRED';
 
 export type SignInErrors = Partial<Record<SignInField, AuthErrorCode>>;
 
